@@ -6,10 +6,11 @@
 
 import torch
 import numpy as np
+import os
 
 class EarlyStopping:
     """주어진 patience 이후로 validation loss가 개선되지 않으면 학습을 조기 중지"""
-    def __init__(self, patience=7, verbose=False, delta=0, path='checkpoint.pt'):
+    def __init__(self, patience=7, best_score=np.inf, counter=0, delta=0, path='checkpoint.pt', verbose=False):
         """
         Args:
             patience (int): validation loss가 개선된 후 기다리는 기간
@@ -23,33 +24,76 @@ class EarlyStopping:
         """
         self.patience = patience
         self.verbose = verbose
-        self.counter = 0
-        self.best_score = None
+        self.counter = counter
+        self.best_score = best_score
         self.early_stop = False
-        self.val_loss_min = np.Inf
         self.delta = delta
         self.path = path
 
     def __call__(self, val_loss, model):
-
-        score = -val_loss
-
-        if self.best_score is None:
-            self.best_score = score
-            self.save_checkpoint(val_loss, model)
-        elif score < self.best_score + self.delta:
+        if val_loss > self.best_score + self.delta:
             self.counter += 1
-            print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            # print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
             if self.counter >= self.patience:
+                print('Early Stopping Validated')
                 self.early_stop = True
+
         else:
-            self.best_score = score
             self.save_checkpoint(val_loss, model)
+            self.best_score = val_loss
             self.counter = 0
+
+        return self.best_score, self.counter, self.early_stop
+
 
     def save_checkpoint(self, val_loss, model):
         '''validation loss가 감소하면 모델을 저장한다.'''
+        if os.path.isfile(self.path):
+            os.remove(self.path)
         if self.verbose:
-            print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
+            print(f'Validation loss decreased ({self.best_score:.6f} --> {val_loss:.6f}).  Saving model ...')
         torch.save(model.state_dict(), self.path)
-        self.val_loss_min = val_loss
+
+
+
+
+def KFOLD_GCN(DATA, KFOLD):
+    CLS_TMP = list()
+    NUM_CLASSES = len(set(DATA[:, -1]))
+    for i in range(NUM_CLASSES):
+        clssp = []
+        for j in DATA:
+            if int(j[-1]) == i:
+                clssp.append(j)
+        clssp = np.array(clssp)
+        CLS_TMP.append(clssp)
+
+    def KFOLD_SEPARATION(sample):
+        getsam = sample
+        kfoldset = []
+        for i in range(KFOLD):
+            putnum = len(getsam) // (KFOLD - i)
+            wtput = getsam[:putnum]
+            kfoldset.append(wtput)
+            getsam = getsam[putnum:]
+
+        return kfoldset
+
+    SEPARATED_SET = []
+    for i in CLS_TMP:
+        SEPARATED_SET.append(KFOLD_SEPARATION(i))
+
+    FINAL_SET = []
+    for i in np.transpose(SEPARATED_SET):
+        FINAL_SET.append(np.vstack(i))
+
+    return FINAL_SET
+
+
+
+
+
+
+
+
+

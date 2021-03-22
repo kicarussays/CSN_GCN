@@ -45,7 +45,18 @@ def NORMALIZATION(data, mode):
 
     return normalized
 
+def NORMALIZATION_v2(data, mode):
+    if mode == 'standard':
+        scaler = StandardScaler()
+    if mode == 'minmax':
+        scaler = MinMaxScaler()
+    
+    scaler.fit(data)
+    normalized = scaler.transform(data)
 
+    return normalized, scaler.mean_, np.sqrt(scaler.var_)
+    
+    
 def DATA_JOIN(status, gene_data, mode):
     """
     - This function join clinical data and gene_data on person id
@@ -260,6 +271,7 @@ def DataLoad(clinical_filepath, gene_data, mode):
     num_vars = len(training[0]) - 1
 
     return training, num_vars, num_classes
+
 
 
 
